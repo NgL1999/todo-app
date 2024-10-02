@@ -66,6 +66,8 @@ func CreateItem(db *gorm.DB) func(c *gin.Context) {
 		}
 
 		item.ID = uuid.New()
+		item.Created_at = time.Now()
+		item.Updated_at = time.Now()
 
 		if err := db.Create(&item).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -138,7 +140,12 @@ func UpdateItemById(db *gorm.DB) func(c *gin.Context) {
 		item.ID = id
 		item.Updated_at = time.Now()
 
-		result := db.Model(&item).Updates(Item{Title: item.Title, Description: item.Description})
+		result := db.Model(&item).Updates(
+			Item{
+				Title:       item.Title,
+				Description: item.Description,
+				Updated_at:  item.Updated_at,
+			})
 
 		if result.Error != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
