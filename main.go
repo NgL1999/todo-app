@@ -43,18 +43,13 @@ func main() {
 	api := r.Group("v1")
 	{
 		items := api.Group("items")
-		items.POST("", CreateItem(db))
-		items.GET("")
-		items.GET("/:id")
-		items.PUT("/:id")
-		items.DELETE("/:id")
+		items.POST("/", CreateItem(db))
+		items.GET("/all", GetAll(db))
+		items.PATCH("/", UpdateById(db))
+		// items.GET("/:id")
+		// items.DELETE("/:id")
 	}
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
 	r.Run()
 }
 
@@ -82,6 +77,51 @@ func CreateItem(db *gorm.DB) func(c *gin.Context) {
 
 		c.JSON(http.StatusCreated, gin.H{
 			"data": item.ID,
+		})
+	}
+}
+
+func GetAll(db *gorm.DB) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		item := []Item{}
+
+		if err := db.Find(&item).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"data": item,
+		})
+	}
+}
+
+func UpdateById(db *gorm.DB) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		item := Item{}
+
+		if err := c.ShouldBind(&item); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		db.Model(&item).Update("title", item.Title)
+		db.Model(&item).Update("description", item.Description)
+		result := db.Model(Item{}).Where("id = ?", item.ID).Updates(Item{Title: item.Title, Description: item.Description})
+
+		if result.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": result.Error,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"updatedCount": result.RowsAffected,
 		})
 	}
 }
