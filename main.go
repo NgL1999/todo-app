@@ -83,9 +83,9 @@ func CreateItem(db *gorm.DB) func(c *gin.Context) {
 
 func GetAll(db *gorm.DB) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		item := []Item{}
+		items := []Item{}
 
-		if err := db.Find(&item).Error; err != nil {
+		if err := db.Find(&items).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
 			})
@@ -93,7 +93,7 @@ func GetAll(db *gorm.DB) func(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"data": item,
+			"data": items,
 		})
 	}
 }
@@ -109,9 +109,7 @@ func UpdateById(db *gorm.DB) func(c *gin.Context) {
 			return
 		}
 
-		db.Model(&item).Update("title", item.Title)
-		db.Model(&item).Update("description", item.Description)
-		result := db.Model(Item{}).Where("id = ?", item.ID).Updates(Item{Title: item.Title, Description: item.Description})
+		result := db.Model(&item).Updates(Item{Title: item.Title, Description: item.Description})
 
 		if result.Error != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
