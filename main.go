@@ -45,7 +45,7 @@ func main() {
 		items := api.Group("items")
 		items.POST("/", CreateItem(db))
 		items.GET("/all", GetAll(db))
-		items.PATCH("/", UpdateById(db))
+		items.PATCH("/:id", UpdateById(db))
 		// items.GET("/:id")
 		// items.DELETE("/:id")
 	}
@@ -65,8 +65,6 @@ func CreateItem(db *gorm.DB) func(c *gin.Context) {
 		}
 
 		item.ID = uuid.New()
-		item.Created_at = time.Now()
-		item.Updated_at = time.Now()
 
 		if err := db.Create(&item).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -108,6 +106,18 @@ func UpdateById(db *gorm.DB) func(c *gin.Context) {
 			})
 			return
 		}
+
+		id, err := uuid.Parse(c.Param("id"))
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		item.ID = id
+		item.Updated_at = time.Now()
 
 		result := db.Model(&item).Updates(Item{Title: item.Title, Description: item.Description})
 
