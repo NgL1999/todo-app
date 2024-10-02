@@ -44,8 +44,9 @@ func main() {
 	{
 		items := api.Group("items")
 		items.POST("/", CreateItem(db))
-		items.GET("/all", GetAll(db))
-		items.PATCH("/:id", UpdateById(db))
+		items.GET("/all", GetAllItems(db))
+		items.GET("/:id", GetItemById(db))
+		items.PATCH("/:id", UpdateItemById(db))
 		// items.GET("/:id")
 		// items.DELETE("/:id")
 	}
@@ -79,7 +80,7 @@ func CreateItem(db *gorm.DB) func(c *gin.Context) {
 	}
 }
 
-func GetAll(db *gorm.DB) func(c *gin.Context) {
+func GetAllItems(db *gorm.DB) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		items := []Item{}
 
@@ -96,7 +97,25 @@ func GetAll(db *gorm.DB) func(c *gin.Context) {
 	}
 }
 
-func UpdateById(db *gorm.DB) func(c *gin.Context) {
+func GetItemById(db *gorm.DB) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		items := Item{}
+		id := c.Param("id")
+
+		if err := db.Find(&items, "id = ?", id).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"data": items,
+		})
+	}
+}
+
+func UpdateItemById(db *gorm.DB) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		item := Item{}
 
