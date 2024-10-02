@@ -22,6 +22,10 @@ type Item struct {
 	Updated_at  time.Time `json:"updated_at"`
 }
 
+func (Item) TableName() string {
+	return "items"
+}
+
 func init() {
 	err := godotenv.Load()
 	if err != nil {
@@ -47,8 +51,7 @@ func main() {
 		items.GET("/all", GetAllItems(db))
 		items.GET("/:id", GetItemById(db))
 		items.PATCH("/:id", UpdateItemById(db))
-		// items.GET("/:id")
-		// items.DELETE("/:id")
+		items.DELETE("/:id", DeleteItemById(db))
 	}
 
 	r.Run()
@@ -101,10 +104,10 @@ func GetAllItems(db *gorm.DB) func(c *gin.Context) {
 
 func GetItemById(db *gorm.DB) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		items := Item{}
+		item := Item{}
 		id := c.Param("id")
 
-		if err := db.Find(&items, "id = ?", id).Error; err != nil {
+		if err := db.Find(&item, "id = ?", id).Error; err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
 			})
@@ -112,7 +115,7 @@ func GetItemById(db *gorm.DB) func(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"data": items,
+			"data": item,
 		})
 	}
 }
@@ -156,6 +159,25 @@ func UpdateItemById(db *gorm.DB) func(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"updatedCount": result.RowsAffected,
+		})
+	}
+}
+
+func DeleteItemById(db *gorm.DB) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		items := Item{}
+		id := c.Param("id")
+		result := db.Delete(&items, "id = ?", id)
+
+		if result.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": result.Error,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"deletedCount": result.RowsAffected,
 		})
 	}
 }
