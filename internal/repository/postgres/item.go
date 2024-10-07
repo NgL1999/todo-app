@@ -22,3 +22,25 @@ func (ir *itemRepo) Save(item *domain.Item) error {
 	}
 	return nil
 }
+
+func (ir *itemRepo) GetAll(items *[]domain.Item) error {
+	if err := ir.db.Find(items).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ir *itemRepo) GetById(item *domain.Item, id string) error {
+	if err := ir.db.Find(item, "id = ?", id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ir *itemRepo) UpdateById(item *domain.ItemUpdate) (int64, error) {
+	result := ir.db.Model(&item).Updates(item)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}

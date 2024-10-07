@@ -18,3 +18,14 @@ type Item struct {
 func (Item) TableName() string {
 	return "items"
 }
+
+type ItemUpdate struct {
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Updated_at  time.Time `json:"updated_at"`
+}
+
+func (ItemUpdate) TableName() string {
+	return Item{}.TableName()
+}
