@@ -12,6 +12,7 @@ type IItemRepo interface {
 	GetAll(items *[]domain.Item) error
 	GetById(item *domain.Item, id string) error
 	UpdateById(item *domain.ItemUpdate) (int64, error)
+	DeleteById(item *domain.Item) (int64, error)
 }
 
 type itemService struct {
@@ -48,6 +49,14 @@ func (is *itemService) GetItemById(ctx context.Context, item *domain.Item, id st
 
 func (is *itemService) UpdateItemById(ctx context.Context, item *domain.ItemUpdate) (int64, error) {
 	result, err := is.itemRepo.UpdateById(item)
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
+func (is *itemService) DeleteItemById(ctx context.Context, item *domain.Item) (int64, error) {
+	result, err := is.itemRepo.DeleteById(item)
 	if err != nil {
 		return 0, err
 	}

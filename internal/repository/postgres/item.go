@@ -38,7 +38,15 @@ func (ir *itemRepo) GetById(item *domain.Item, id string) error {
 }
 
 func (ir *itemRepo) UpdateById(item *domain.ItemUpdate) (int64, error) {
-	result := ir.db.Model(&item).Updates(item)
+	result := ir.db.Model(item).Updates(item)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
+func (ir *itemRepo) DeleteById(item *domain.Item) (int64, error) {
+	result := ir.db.Delete(item)
 	if result.Error != nil {
 		return 0, result.Error
 	}

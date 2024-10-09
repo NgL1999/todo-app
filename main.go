@@ -36,28 +36,7 @@ func main() {
 		itemRepo := pgRepo.NewItemRepo(db)
 		itemService := item.NewItemService(itemRepo)
 		restApi.NewItemHandler(api, itemService)
-		// items.DELETE("/:id", DeleteItemById(db))
 	}
 
 	r.Run()
 }
-
-
-// func DeleteItemById(db *gorm.DB) func(c *gin.Context) {
-// 	return func(c *gin.Context) {
-// 		items := Item{}
-// 		id := c.Param("id")
-// 		result := db.Delete(&items, "id = ?", id)
-
-// 		if result.Error != nil {
-// 			c.JSON(http.StatusBadRequest, gin.H{
-// 				"error": result.Error,
-// 			})
-// 			return
-// 		}
-
-// 		c.JSON(http.StatusOK, gin.H{
-// 			"deletedCount": result.RowsAffected,
-// 		})
-// 	}
-// }

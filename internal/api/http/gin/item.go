@@ -15,6 +15,7 @@ type IItemService interface {
 	GetAllItems(ctx context.Context, items *[]domain.Item) error
 	GetItemById(ctx context.Context, item *domain.Item, id string) error
 	UpdateItemById(ctx context.Context, item *domain.ItemUpdate) (int64, error)
+	DeleteItemById(ctx context.Context, item *domain.Item) (int64, error)
 }
 
 type itemHandler struct {
@@ -32,7 +33,8 @@ func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService) {
 		items.POST("/", itemHandler.CreateItemHandler)
 		items.GET("/all", itemHandler.GetAllItemsHandler)
 		items.GET("/:id", itemHandler.GetItemByIdHandler)
-		items.PATCH("/:id", itemHandler.UpdateItemById)
+		items.PATCH("/:id", itemHandler.UpdateItemByIdHandler)
+		items.DELETE("/:id", itemHandler.DeleteItemByIdHandler)
 	}
 }
 
@@ -93,7 +95,7 @@ func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 	})
 }
 
-func (ih *itemHandler) UpdateItemById(c *gin.Context) {
+func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 	item := domain.ItemUpdate{}
 
 	if err := c.ShouldBind(&item); err != nil {
@@ -125,5 +127,31 @@ func (ih *itemHandler) UpdateItemById(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"updatedCount": result,
+	})
+}
+
+func (ih *itemHandler) DeleteItemByIdHandler(c *gin.Context) {
+	item := domain.Item{}
+	id, err := uuid.Parse(c.Param("id"))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	item.ID = id
+	result, err := ih.itemService.DeleteItemById(c, &item)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"deletedCount": result,
 	})
 }
