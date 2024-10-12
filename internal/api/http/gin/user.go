@@ -1,73 +1,83 @@
 package gin
 
 import (
-	"context"
 	"net/http"
-	"time"
 	"todo-app/domain"
+	"todo-app/pkg/client"
+	"todo-app/pkg/tokenprovider"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-type IUserService interface {
-	Register(ctx context.Context, user *domain.User) error
-	GetAllUsers(ctx context.Context, users *[]domain.User) error
-	GetUserById(ctx context.Context, user *domain.User, id string) error
-	UpdateUserById(ctx context.Context, user *domain.User) (int64, error)
-	DeleteUserById(ctx context.Context, user *domain.User) (int64, error)
+type UserService interface {
+	Register(data *domain.UserCreate) error
+	Login(data *domain.UserLogin) (tokenprovider.Token, error)
+	GetAllUsers(users *[]domain.User) error
+	GetUserById(user *domain.User, id string) error
+	UpdateUserById(user *domain.User) (int64, error)
+	DeleteUserById(user *domain.User) (int64, error)
 }
 
 type userHandler struct {
-	userService IUserService
+	userService UserService
 }
 
-// Constructor
-func NewUserHandler(apiVersion *gin.RouterGroup, isvc IUserService) {
+func NewUserHandler(apiVersion *gin.RouterGroup, svc UserService) {
 	userHandler := &userHandler{
-		userService: isvc,
+		userService: svc,
 	}
 
-	users := apiVersion.Group("users")
-	{
-		users.POST("/", userHandler.RegisterHandler)
-		users.GET("/all", userHandler.GetAllUsersHandler)
-		users.GET("/:id", userHandler.GetUserByIdHandler)
-		users.PATCH("/:id", userHandler.UpdateUserByIdHandler)
-		users.DELETE("/:id", userHandler.DeleteUserByIdHandler)
-	}
+	users := apiVersion.Group("/users")
+	users.POST("/register", userHandler.RegisterUserHandler)
+	users.POST("/login", userHandler.LoginHandler)
+	users.GET("/", userHandler.GetAllUsersHandler)
+	users.GET("/:id", userHandler.GetUserByIdHandler)
+	users.PATCH("/:id", userHandler.UpdateUserByIdHandler)
+	users.DELETE("/:id", userHandler.DeleteUserByIdHandler)
 }
 
-func (ih *userHandler) RegisterHandler(c *gin.Context) {
-	user := domain.User{}
+func (h *userHandler) RegisterUserHandler(c *gin.Context) {
+	var data domain.UserCreate
 
-	if err := c.ShouldBind(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	if err := c.ShouldBind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
+
 		return
 	}
 
-	user.ID = uuid.New()
-	user.Created_at = time.Now()
-	user.Updated_at = time.Now()
+	if err := h.userService.Register(&data); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 
-	if err := ih.userService.Register(c, &user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"data": user.ID,
-	})
+	c.JSON(http.StatusOK, client.SimpleSuccessResponse(data.ID))
 }
 
-func (ih *userHandler) GetAllUsersHandler(c *gin.Context) {
+func (h *userHandler) LoginHandler(c *gin.Context) {
+	var data domain.UserLogin
+
+	if err := c.ShouldBind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
+
+		return
+	}
+
+	token, err := h.userService.Login(&data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, client.SimpleSuccessResponse(token))
+}
+
+func (h *userHandler) GetAllUsersHandler(c *gin.Context) {
 	users := []domain.User{}
 
-	if err := ih.userService.GetAllUsers(c, &users); err != nil {
+	if err := h.userService.GetAllUsers(&users); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -79,11 +89,11 @@ func (ih *userHandler) GetAllUsersHandler(c *gin.Context) {
 	})
 }
 
-func (ih *userHandler) GetUserByIdHandler(c *gin.Context) {
+func (h *userHandler) GetUserByIdHandler(c *gin.Context) {
 	user := domain.User{}
 	id := c.Param("id")
 
-	if err := ih.userService.GetUserById(c, &user, id); err != nil {
+	if err := h.userService.GetUserById(&user, id); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -95,7 +105,7 @@ func (ih *userHandler) GetUserByIdHandler(c *gin.Context) {
 	})
 }
 
-func (ih *userHandler) UpdateUserByIdHandler(c *gin.Context) {
+func (h *userHandler) UpdateUserByIdHandler(c *gin.Context) {
 	user := domain.User{}
 
 	if err := c.ShouldBind(&user); err != nil {
@@ -115,8 +125,7 @@ func (ih *userHandler) UpdateUserByIdHandler(c *gin.Context) {
 	}
 
 	user.ID = id
-	user.Updated_at = time.Now()
-	result, err := ih.userService.UpdateUserById(c, &user)
+	result, err := h.userService.UpdateUserById(&user)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -130,7 +139,7 @@ func (ih *userHandler) UpdateUserByIdHandler(c *gin.Context) {
 	})
 }
 
-func (ih *userHandler) DeleteUserByIdHandler(c *gin.Context) {
+func (h *userHandler) DeleteUserByIdHandler(c *gin.Context) {
 	user := domain.User{}
 	id, err := uuid.Parse(c.Param("id"))
 
@@ -142,7 +151,7 @@ func (ih *userHandler) DeleteUserByIdHandler(c *gin.Context) {
 	}
 
 	user.ID = id
-	result, err := ih.userService.DeleteUserById(c, &user)
+	result, err := h.userService.DeleteUserById(&user)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

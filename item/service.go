@@ -11,7 +11,7 @@ type IItemRepo interface {
 	Save(item *domain.Item) error
 	GetAll(items *[]domain.Item) error
 	GetById(item *domain.Item, id string) error
-	UpdateById(item *domain.ItemUpdate) (int64, error)
+	UpdateById(item *domain.Item) (int64, error)
 	DeleteById(item *domain.Item) (int64, error)
 }
 
@@ -47,7 +47,7 @@ func (is *itemService) GetItemById(ctx context.Context, item *domain.Item, id st
 	return nil
 }
 
-func (is *itemService) UpdateItemById(ctx context.Context, item *domain.ItemUpdate) (int64, error) {
+func (is *itemService) UpdateItemById(ctx context.Context, item *domain.Item) (int64, error) {
 	result, err := is.itemRepo.UpdateById(item)
 	if err != nil {
 		return 0, err

@@ -3,7 +3,6 @@ package gin
 import (
 	"context"
 	"net/http"
-	"time"
 	"todo-app/domain"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,7 @@ type IItemService interface {
 	CreateItem(ctx context.Context, item *domain.Item) error
 	GetAllItems(ctx context.Context, items *[]domain.Item) error
 	GetItemById(ctx context.Context, item *domain.Item, id string) error
-	UpdateItemById(ctx context.Context, item *domain.ItemUpdate) (int64, error)
+	UpdateItemById(ctx context.Context, item *domain.Item) (int64, error)
 	DeleteItemById(ctx context.Context, item *domain.Item) (int64, error)
 }
 
@@ -38,6 +37,14 @@ func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService) {
 	}
 }
 
+// @Summary Show an item
+// @Description get string by ID
+// @Accept  json
+// @Produce  json
+// @Param   id path int true "Item ID"
+// @Success 200 {object} Item
+// @Failure 400 {object} HTTPError
+// @Router /items [post]
 func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
 	item := domain.Item{}
 
@@ -49,8 +56,6 @@ func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
 	}
 
 	item.ID = uuid.New()
-	item.Created_at = time.Now()
-	item.Updated_at = time.Now()
 
 	if err := ih.itemService.CreateItem(c, &item); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -96,7 +101,7 @@ func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 }
 
 func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
-	item := domain.ItemUpdate{}
+	item := domain.Item{}
 
 	if err := c.ShouldBind(&item); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -115,7 +120,6 @@ func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 	}
 
 	item.ID = id
-	item.Updated_at = time.Now()
 	result, err := ih.itemService.UpdateItemById(c, &item)
 
 	if err != nil {
