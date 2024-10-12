@@ -6,6 +6,7 @@ import (
 	restApi "todo-app/internal/api/http/gin"
 	pgRepo "todo-app/internal/repository/postgres"
 	"todo-app/item"
+	"todo-app/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -36,6 +37,9 @@ func main() {
 		itemRepo := pgRepo.NewItemRepo(db)
 		itemService := item.NewItemService(itemRepo)
 		restApi.NewItemHandler(api, itemService)
+		userRepo := pgRepo.NewUserRepo(db)
+		userService := user.NewUserService(userRepo)
+		restApi.NewUserHandler(api, userService)
 	}
 
 	r.Run()
