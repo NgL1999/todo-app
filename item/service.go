@@ -1,18 +1,19 @@
 package item
 
 import (
-	"context"
+	"time"
 	"todo-app/domain"
+	"todo-app/pkg/client"
 
 	"github.com/google/uuid"
 )
 
 type IItemRepo interface {
-	Save(item *domain.Item) error
-	GetAll(items *[]domain.Item) error
-	GetById(item *domain.Item, id string) error
-	UpdateById(item *domain.Item) (int64, error)
-	DeleteById(item *domain.Item) (int64, error)
+	Save(item *domain.ItemCreation) error
+	GetAll(filter map[string]any, paging *client.Paging) ([]domain.Item, error)
+	Get(filter map[string]any) (domain.Item, error)
+	Update(filter map[string]any, item *domain.ItemUpdate) error
+	Delete(filter map[string]any) error
 }
 
 type itemService struct {
@@ -25,40 +26,53 @@ func NewItemService(repo IItemRepo) *itemService {
 	}
 }
 
-func (is *itemService) CreateItem(ctx context.Context, item *domain.Item) error {
+func (s *itemService) CreateItem(item *domain.ItemCreation) error {
+	if err := item.Validate(); err != nil {
+		return client.ErrInvalidRequest(err)
+	}
+
 	item.ID = uuid.New()
-	if err := is.itemRepo.Save(item); err != nil {
-		return err
+	if err := s.itemRepo.Save(item); err != nil {
+		return client.ErrCannotCreateEntity(item.TableName(), err)
 	}
+
 	return nil
 }
 
-func (is *itemService) GetAllItems(ctx context.Context, items *[]domain.Item) error {
-	if err := is.itemRepo.GetAll(items); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (is *itemService) GetItemById(ctx context.Context, item *domain.Item, id string) error {
-	if err := is.itemRepo.GetById(item, id); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (is *itemService) UpdateItemById(ctx context.Context, item *domain.Item) (int64, error) {
-	result, err := is.itemRepo.UpdateById(item)
+func (s *itemService) GetAllItems(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error) {
+	filter := map[string]any{"user_id": userID}
+	items, err := s.itemRepo.GetAll(filter, paging)
 	if err != nil {
-		return 0, err
+		return nil, client.ErrCannotListEntity(domain.Item{}.TableName(), err)
 	}
-	return result, nil
+
+	return items, nil
 }
 
-func (is *itemService) DeleteItemById(ctx context.Context, item *domain.Item) (int64, error) {
-	result, err := is.itemRepo.DeleteById(item)
+func (s *itemService) GetItemById(id, userID uuid.UUID) (domain.Item, error) {
+	item, err := s.itemRepo.Get(map[string]any{"id": id, "user_id": userID})
 	if err != nil {
-		return 0, err
+		return domain.Item{}, client.ErrCannotGetEntity(item.TableName(), err)
 	}
-	return result, nil
+
+	return item, nil
+}
+
+func (s *itemService) UpdateItemById(id, userID uuid.UUID, item *domain.ItemUpdate) error {
+	item.UpdatedAt = time.Now()
+	err := s.itemRepo.Update(map[string]any{"id": id, "user_id": userID}, item)
+	if err != nil {
+		return client.ErrCannotUpdateEntity(item.TableName(), err)
+	}
+
+	return nil
+}
+
+func (s *itemService) DeleteItemById(id, userID uuid.UUID) error {
+	err := s.itemRepo.Delete(map[string]any{"id": id, "user_id": userID})
+	if err != nil {
+		return client.ErrCannotDeleteEntity(domain.Item{}.TableName(), err)
+	}
+
+	return nil
 }
