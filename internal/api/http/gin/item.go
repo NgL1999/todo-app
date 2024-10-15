@@ -1,161 +1,196 @@
 package gin
 
 import (
-	"context"
 	"net/http"
 	"todo-app/domain"
+	"todo-app/pkg/client"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type IItemService interface {
-	CreateItem(ctx context.Context, item *domain.Item) error
-	GetAllItems(ctx context.Context, items *[]domain.Item) error
-	GetItemById(ctx context.Context, item *domain.Item, id string) error
-	UpdateItemById(ctx context.Context, item *domain.Item) (int64, error)
-	DeleteItemById(ctx context.Context, item *domain.Item) (int64, error)
+	CreateItem(item *domain.ItemCreation) error
+	GetAllItems(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error)
+	GetItemById(id, userID uuid.UUID) (domain.Item, error)
+	UpdateItemById(id, userID uuid.UUID, item *domain.ItemUpdate) error
+	DeleteItemById(id, userID uuid.UUID) error
 }
 
 type itemHandler struct {
 	itemService IItemService
 }
 
-// Constructor
-func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService) {
+func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService, middlewareAuth func(c *gin.Context), middlewareRateLimit func(c *gin.Context)) {
 	itemHandler := &itemHandler{
 		itemService: isvc,
 	}
 
-	items := apiVersion.Group("items")
+	items := apiVersion.Group("items", middlewareAuth)
 	{
 		items.POST("/", itemHandler.CreateItemHandler)
-		items.GET("/all", itemHandler.GetAllItemsHandler)
+		items.GET("/", middlewareRateLimit, itemHandler.GetAllItemsHandler)
 		items.GET("/:id", itemHandler.GetItemByIdHandler)
 		items.PATCH("/:id", itemHandler.UpdateItemByIdHandler)
 		items.DELETE("/:id", itemHandler.DeleteItemByIdHandler)
 	}
 }
 
-// @Summary Show an item
-// @Description get string by ID
-// @Accept  json
-// @Produce  json
-// @Param   id path int true "Item ID"
-// @Success 200 {object} Item
-// @Failure 400 {object} HTTPError
-// @Router /items [post]
+// CreateItemHandler handles the creation of a new item.
+//
+// @Summary      Create a new item
+// @Description  This endpoint allows authenticated users to create an item.
+// @Tags         Items
+// @Accept       json
+// @Produce      json
+// @Param        item  body      domain.ItemCreation  true  "Item creation payload"
+// @Success      200   {object}  client.SuccessRes   "Item successfully created"
+// @Failure      400   {object}  client.AppError     "Bad Request"
+// @Failure      401   {object}  client.AppError     "Unauthorized"
+// @Failure      500   {object}  client.AppError     "Internal Server Error"
 func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
-	item := domain.Item{}
+	var item domain.ItemCreation
 
 	if err := c.ShouldBind(&item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
 	}
 
-	item.ID = uuid.New()
+	requester := c.MustGet(client.CurrentUser).(client.Requester)
+	item.UserID = requester.GetUserId()
 
-	if err := ih.itemService.CreateItem(c, &item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	if err := ih.itemService.CreateItem(&item); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"data": item.ID,
-	})
+	c.JSON(http.StatusCreated, client.SimpleSuccessResponse(item.ID))
 }
 
+// GetAllItemsHandler retrieves all items.
+//
+// @Summary      Get all items
+// @Description  This endpoint retrieves a list of all items.
+// @Tags         Items
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  clients.SuccessRes  "List of items retrieved successfully"
+// @Failure      500  {object}  clients.AppError    "Internal Server Error"
+// @Router       /items [get]
 func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
-	items := []domain.Item{}
+	var paging client.Paging
+	if err := c.ShouldBind(&paging); err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
+		return
+	}
+	paging.Process()
 
-	if err := ih.itemService.GetAllItems(c, &items); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	requester := c.MustGet(client.CurrentUser).(client.Requester)
+
+	items, err := ih.itemService.GetAllItems(requester.GetUserId(), &paging)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": items,
-	})
+	c.JSON(http.StatusOK, client.NewSuccessResponse(items, paging, nil))
 }
 
+// GetItemHandler retrieves an item by its ID.
+//
+// @Summary      Get an item by ID
+// @Description  This endpoint retrieves a single item by its unique identifier.
+// @Tags         Items
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string                 true  "Item ID"
+// @Success      200  {object}  clients.SuccessRes     "Item retrieved successfully"
+// @Failure      400  {object}  clients.AppError       "Invalid ID format or bad request"
+// @Failure      404  {object}  clients.AppError       "Item not found"
+// @Failure      500  {object}  clients.AppError       "Internal Server Error"
+// @Router       /items/{id} [get]
 func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
-	item := domain.Item{}
-	id := c.Param("id")
-
-	if err := ih.itemService.GetItemById(c, &item, id); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": item,
-	})
+	requester := c.MustGet(client.CurrentUser).(client.Requester)
+
+	item, err := ih.itemService.GetItemById(id, requester.GetUserId())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, client.SimpleSuccessResponse(item))
 }
 
+// UpdateItemHandler updates an existing item.
+//
+// @Summary      Update an item
+// @Description  This endpoint allows updating the properties of an existing item by its ID.
+// @Tags         Items
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                 true  "Item ID"
+// @Param        item  body      domain.ItemUpdate      true  "Item update payload"
+// @Success      200   {object}  clients.SuccessRes     "Item updated successfully"
+// @Failure      400   {object}  clients.AppError       "Invalid input or bad request"
+// @Failure      404   {object}  clients.AppError       "Item not found"
+// @Failure      500   {object}  clients.AppError       "Internal Server Error"
+// @Router       /items/{id} [put]
 func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
-	item := domain.Item{}
+	var item domain.ItemUpdate
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
+		return
+	}
 
 	if err := c.ShouldBind(&item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	if err := ih.itemService.UpdateItemById(id, requester.GetUserId(), &item); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	item.ID = id
-	result, err := ih.itemService.UpdateItemById(c, &item)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"updatedCount": result,
-	})
+	c.JSON(http.StatusOK, client.SimpleSuccessResponse(true))
 }
 
+// DeleteItemHandler deletes an item by its ID.
+//
+// @Summary      Delete an item
+// @Description  This endpoint deletes an item identified by its unique ID.
+// @Tags         Items
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string                 true  "Item ID"
+// @Success      200  {object}  clients.SuccessRes     "Item deleted successfully"
+// @Failure      400  {object}  clients.AppError       "Invalid ID format or bad request"
+// @Failure      404  {object}  clients.AppError       "Item not found"
+// @Failure      500  {object}  clients.AppError       "Internal Server Error"
+// @Router       /items/{id} [delete]
 func (ih *itemHandler) DeleteItemByIdHandler(c *gin.Context) {
-	item := domain.Item{}
 	id, err := uuid.Parse(c.Param("id"))
-
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
 	}
 
-	item.ID = id
-	result, err := ih.itemService.DeleteItemById(c, &item)
+	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	if err := ih.itemService.DeleteItemById(id, requester.GetUserId()); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"deletedCount": result,
-	})
+	c.JSON(http.StatusOK, client.SimpleSuccessResponse(true))
 }
