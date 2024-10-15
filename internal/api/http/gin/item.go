@@ -44,7 +44,7 @@ func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService, middlewareAu
 // @Accept       json
 // @Produce      json
 // @Param        item  body      domain.ItemCreation  true  "Item creation payload"
-// @Success      200   {object}  client.SuccessRes   "Item successfully created"
+// @Success      200   {object}  client.successRes   "Item successfully created"
 // @Failure      400   {object}  client.AppError     "Bad Request"
 // @Failure      401   {object}  client.AppError     "Unauthorized"
 // @Failure      500   {object}  client.AppError     "Internal Server Error"
@@ -74,8 +74,8 @@ func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
 // @Tags         Items
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  clients.SuccessRes  "List of items retrieved successfully"
-// @Failure      500  {object}  clients.AppError    "Internal Server Error"
+// @Success      200  {object}  client.successRes  "List of items retrieved successfully"
+// @Failure      500  {object}  client.AppError    "Internal Server Error"
 // @Router       /items [get]
 func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
 	var paging client.Paging
@@ -104,10 +104,10 @@ func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id   path      string                 true  "Item ID"
-// @Success      200  {object}  clients.SuccessRes     "Item retrieved successfully"
-// @Failure      400  {object}  clients.AppError       "Invalid ID format or bad request"
-// @Failure      404  {object}  clients.AppError       "Item not found"
-// @Failure      500  {object}  clients.AppError       "Internal Server Error"
+// @Success      200  {object}  client.successRes     "Item retrieved successfully"
+// @Failure      400  {object}  client.AppError       "Invalid ID format or bad request"
+// @Failure      404  {object}  client.AppError       "Item not found"
+// @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [get]
 func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
@@ -136,10 +136,10 @@ func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 // @Produce      json
 // @Param        id    path      string                 true  "Item ID"
 // @Param        item  body      domain.ItemUpdate      true  "Item update payload"
-// @Success      200   {object}  clients.SuccessRes     "Item updated successfully"
-// @Failure      400   {object}  clients.AppError       "Invalid input or bad request"
-// @Failure      404   {object}  clients.AppError       "Item not found"
-// @Failure      500   {object}  clients.AppError       "Internal Server Error"
+// @Success      200   {object}  client.successRes     "Item updated successfully"
+// @Failure      400   {object}  client.AppError       "Invalid input or bad request"
+// @Failure      404   {object}  client.AppError       "Item not found"
+// @Failure      500   {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [put]
 func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 	var item domain.ItemUpdate
@@ -173,10 +173,10 @@ func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id   path      string                 true  "Item ID"
-// @Success      200  {object}  clients.SuccessRes     "Item deleted successfully"
-// @Failure      400  {object}  clients.AppError       "Invalid ID format or bad request"
-// @Failure      404  {object}  clients.AppError       "Item not found"
-// @Failure      500  {object}  clients.AppError       "Internal Server Error"
+// @Success      200  {object}  client.successRes     "Item deleted successfully"
+// @Failure      400  {object}  client.AppError       "Invalid ID format or bad request"
+// @Failure      404  {object}  client.AppError       "Item not found"
+// @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [delete]
 func (ih *itemHandler) DeleteItemByIdHandler(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
