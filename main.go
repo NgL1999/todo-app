@@ -79,7 +79,7 @@ func main() {
 	middlewareRateLimit := middleware.RateLimiter(limiter)
 
 	// ─── Handlers ───────────────────────────────────────────────────────────
-	restApi.NewUserHandler(api, userService)
+	restApi.NewUserHandler(api, userService, middlewareAuth)
 	restApi.NewItemHandler(api, itemService, middlewareAuth, middlewareRateLimit)
 
 	r.Run()
