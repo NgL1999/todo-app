@@ -112,13 +112,13 @@ var (
 )
 
 type UserUpdate struct {
-	Email     string        `json:"email"`
-	Password  string        `json:"-"`
+	// Email     string        `json:"email"`
+	// Password  string        `json:"-"`
 	FirstName string        `json:"first_name"`
 	LastName  string        `json:"last_name"`
-	Phone     string        `json:"phone"`
-	Role      UserRole      `json:"role"`
-	Status    client.Status `json:"status"`
+	// Phone     string        `json:"phone"`
+	// Role      UserRole      `json:"role"`
+	// Status    client.Status `json:"status"`
 	UpdatedAt *time.Time    `json:"updated_at"`
 }
 

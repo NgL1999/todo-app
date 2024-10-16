@@ -23,7 +23,7 @@ type userHandler struct {
 	userService IUserService
 }
 
-func NewUserHandler(apiVersion *gin.RouterGroup, svc IUserService) {
+func NewUserHandler(apiVersion *gin.RouterGroup, svc IUserService, middlewareAuth func(c *gin.Context)) {
 	userHandler := &userHandler{
 		userService: svc,
 	}
@@ -32,13 +32,26 @@ func NewUserHandler(apiVersion *gin.RouterGroup, svc IUserService) {
 	{
 		users.POST("/register", userHandler.RegisterHandler)
 		users.POST("/login", userHandler.LoginHandler)
-		users.GET("/", userHandler.GetAllHandler)
-		users.GET("/:id", userHandler.GetByIdHandler)
-		users.PATCH("/:id", userHandler.UpdateByIdHandler)
-		users.DELETE("/:id", userHandler.DeleteByIdHandler)
+		users.GET("/", middlewareAuth, userHandler.GetAllHandler)
+		users.GET("/:id", middlewareAuth, userHandler.GetByIdHandler)
+		users.PATCH("/:id", middlewareAuth, userHandler.UpdateByIdHandler)
+		users.DELETE("/:id", middlewareAuth, userHandler.DeleteByIdHandler)
 	}
 }
 
+// CreateHandler handles the creation of a new user.
+//
+// @Summary      Create a new user
+// @Description  This endpoint is used to create an user.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      domain.UserCreate  true  "User creation payload"
+// @Success      200   {object}  client.successRes   "User successfully created"
+// @Failure      400   {object}  client.AppError     "Bad Request"
+// @Failure      401   {object}  client.AppError     "Unauthorized"
+// @Failure      500   {object}  client.AppError     "Internal Server Error"
+// @Router       /users/register [post]
 func (uh *userHandler) RegisterHandler(c *gin.Context) {
 	var data domain.UserCreate
 
@@ -55,19 +68,19 @@ func (uh *userHandler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, client.SimpleSuccessResponse(data.ID))
 }
 
-// LoginHandler retrieves an user by its ID.
+// LoginHandler login.
 //
-// @Summary      Get an user by ID
-// @Description  This endpoint retrieves a single user by its unique identifier.
+// @Summary      Login
+// @Description  This endpoint is used to login.
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        id   path      string                 true  "User ID"
-// @Success      200  {object}  client.successRes     "User retrieved successfully"
+// @Param        user   body    domain.UserLogin  true  "User login payload"
+// @Success      200  {object}  client.successRes     "User login successfully"
 // @Failure      400  {object}  client.AppError       "Invalid ID format or bad request"
 // @Failure      404  {object}  client.AppError       "User not found"
 // @Failure      500  {object}  client.AppError       "Internal Server Error"
-// @Router       /users/{id} [get]
+// @Router       /users/login [post]
 func (uh *userHandler) LoginHandler(c *gin.Context) {
 	var data domain.UserLogin
 
@@ -95,6 +108,7 @@ func (uh *userHandler) LoginHandler(c *gin.Context) {
 // @Success      200  {object}  client.successRes  "List of users retrieved successfully"
 // @Failure      500  {object}  client.AppError    "Internal Server Error"
 // @Router       /users [get]
+// @Security BearerAuth
 func (uh *userHandler) GetAllHandler(c *gin.Context) {
 	var paging client.Paging
 	var users []domain.User
@@ -135,6 +149,7 @@ func (uh *userHandler) GetAllHandler(c *gin.Context) {
 // @Failure      404  {object}  client.AppError       "User not found"
 // @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /users/{id} [get]
+// @Security BearerAuth
 func (uh *userHandler) GetByIdHandler(c *gin.Context) {
 	var user *domain.User
 	var err error
@@ -148,8 +163,11 @@ func (uh *userHandler) GetByIdHandler(c *gin.Context) {
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 	if requester.GetRole() == domain.RoleAdmin.String() {
 		user, err = uh.userService.GetById(id)
+	} else if id != requester.GetUserId() {
+		c.JSON(http.StatusForbidden, client.ErrNoPermission(nil))
+		return
 	} else {
-		user, err = uh.userService.GetById(requester.GetUserId())
+		user, err = uh.userService.GetById(id)
 	}
 
 	if err != nil {
@@ -174,6 +192,7 @@ func (uh *userHandler) GetByIdHandler(c *gin.Context) {
 // @Failure      404   {object}  client.AppError       "User not found"
 // @Failure      500   {object}  client.AppError       "Internal Server Error"
 // @Router       /users/{id} [put]
+// @Security BearerAuth
 func (uh *userHandler) UpdateByIdHandler(c *gin.Context) {
 	var user domain.UserUpdate
 
@@ -191,6 +210,9 @@ func (uh *userHandler) UpdateByIdHandler(c *gin.Context) {
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 	if requester.GetRole() == domain.RoleAdmin.String() {
 		err = uh.userService.UpdateById(id, &user)
+	} else if id != requester.GetUserId() {
+		c.JSON(http.StatusForbidden, client.ErrNoPermission(nil))
+		return
 	} else {
 		err = uh.userService.UpdateById(requester.GetUserId(), &user)
 	}
@@ -216,6 +238,7 @@ func (uh *userHandler) UpdateByIdHandler(c *gin.Context) {
 // @Failure      404  {object}  client.AppError       "User not found"
 // @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /users/{id} [delete]
+// @Security BearerAuth
 func (uh *userHandler) DeleteByIdHandler(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -226,6 +249,9 @@ func (uh *userHandler) DeleteByIdHandler(c *gin.Context) {
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 	if requester.GetRole() == domain.RoleAdmin.String() {
 		err = uh.userService.DeleteById(id)
+	} else if id != requester.GetUserId() {
+		c.JSON(http.StatusForbidden, client.ErrNoPermission(nil))
+		return
 	} else {
 		err = uh.userService.DeleteById(requester.GetUserId())
 	}
