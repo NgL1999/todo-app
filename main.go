@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 	"time"
-	docs "todo-app/docs"
+	"todo-app/docs"
 	restApi "todo-app/internal/api/http/gin"
 	"todo-app/internal/api/http/gin/middleware"
 	pgRepo "todo-app/internal/repository/postgres"
@@ -16,8 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	swaggerfiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 	"github.com/ulule/limiter/v3"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
 	"gorm.io/driver/postgres"
@@ -48,7 +48,7 @@ func main() {
 
 	// ─── Swagger ─────────────────────────────────────────────────────────
 	docs.SwaggerInfo.BasePath = "/v1"
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// ─── Error Handler ───────────────────────────────────────────────────
 	r.Use(middleware.Recover())
