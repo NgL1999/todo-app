@@ -10,11 +10,11 @@ import (
 )
 
 type IItemService interface {
-	CreateItem(item *domain.ItemCreation) error
-	GetAllItems(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error)
-	GetItemById(id, userID uuid.UUID) (domain.Item, error)
-	UpdateItemById(id, userID uuid.UUID, item *domain.ItemUpdate) error
-	DeleteItemById(id, userID uuid.UUID) error
+	Create(item *domain.ItemCreation) error
+	GetAll(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error)
+	GetById(id, userID uuid.UUID) (domain.Item, error)
+	UpdateById(id, userID uuid.UUID, item *domain.ItemUpdate) error
+	DeleteById(id, userID uuid.UUID) error
 }
 
 type itemHandler struct {
@@ -28,11 +28,11 @@ func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService, middlewareAu
 
 	items := apiVersion.Group("items", middlewareAuth)
 	{
-		items.POST("/", itemHandler.CreateItemHandler)
-		items.GET("/", middlewareRateLimit, itemHandler.GetAllItemsHandler)
-		items.GET("/:id", itemHandler.GetItemByIdHandler)
-		items.PATCH("/:id", itemHandler.UpdateItemByIdHandler)
-		items.DELETE("/:id", itemHandler.DeleteItemByIdHandler)
+		items.POST("/", itemHandler.CreateHandler)
+		items.GET("/", middlewareRateLimit, itemHandler.GetAllHandler)
+		items.GET("/:id", itemHandler.GetByIdHandler)
+		items.PATCH("/:id", itemHandler.UpdateByIdHandler)
+		items.DELETE("/:id", itemHandler.DeleteByIdHandler)
 	}
 }
 
@@ -48,7 +48,7 @@ func NewItemHandler(apiVersion *gin.RouterGroup, isvc IItemService, middlewareAu
 // @Failure      400   {object}  client.AppError     "Bad Request"
 // @Failure      401   {object}  client.AppError     "Unauthorized"
 // @Failure      500   {object}  client.AppError     "Internal Server Error"
-func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
+func (ih *itemHandler) CreateHandler(c *gin.Context) {
 	var item domain.ItemCreation
 
 	if err := c.ShouldBind(&item); err != nil {
@@ -59,7 +59,7 @@ func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 	item.UserID = requester.GetUserId()
 
-	if err := ih.itemService.CreateItem(&item); err != nil {
+	if err := ih.itemService.Create(&item); err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
@@ -77,7 +77,7 @@ func (ih *itemHandler) CreateItemHandler(c *gin.Context) {
 // @Success      200  {object}  client.successRes  "List of items retrieved successfully"
 // @Failure      500  {object}  client.AppError    "Internal Server Error"
 // @Router       /items [get]
-func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
+func (ih *itemHandler) GetAllHandler(c *gin.Context) {
 	var paging client.Paging
 	if err := c.ShouldBind(&paging); err != nil {
 		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
@@ -87,7 +87,7 @@ func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
 
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	items, err := ih.itemService.GetAllItems(requester.GetUserId(), &paging)
+	items, err := ih.itemService.GetAll(requester.GetUserId(), &paging)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
 		return
@@ -109,7 +109,7 @@ func (ih *itemHandler) GetAllItemsHandler(c *gin.Context) {
 // @Failure      404  {object}  client.AppError       "Item not found"
 // @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [get]
-func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
+func (ih *itemHandler) GetByIdHandler(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
@@ -118,7 +118,7 @@ func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	item, err := ih.itemService.GetItemById(id, requester.GetUserId())
+	item, err := ih.itemService.GetById(id, requester.GetUserId())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
@@ -141,7 +141,7 @@ func (ih *itemHandler) GetItemByIdHandler(c *gin.Context) {
 // @Failure      404   {object}  client.AppError       "Item not found"
 // @Failure      500   {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [put]
-func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
+func (ih *itemHandler) UpdateByIdHandler(c *gin.Context) {
 	var item domain.ItemUpdate
 
 	id, err := uuid.Parse(c.Param("id"))
@@ -157,7 +157,7 @@ func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	if err := ih.itemService.UpdateItemById(id, requester.GetUserId(), &item); err != nil {
+	if err := ih.itemService.UpdateById(id, requester.GetUserId(), &item); err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
@@ -178,7 +178,7 @@ func (ih *itemHandler) UpdateItemByIdHandler(c *gin.Context) {
 // @Failure      404  {object}  client.AppError       "Item not found"
 // @Failure      500  {object}  client.AppError       "Internal Server Error"
 // @Router       /items/{id} [delete]
-func (ih *itemHandler) DeleteItemByIdHandler(c *gin.Context) {
+func (ih *itemHandler) DeleteByIdHandler(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, client.ErrInvalidRequest(err))
@@ -187,7 +187,7 @@ func (ih *itemHandler) DeleteItemByIdHandler(c *gin.Context) {
 
 	requester := c.MustGet(client.CurrentUser).(client.Requester)
 
-	if err := ih.itemService.DeleteItemById(id, requester.GetUserId()); err != nil {
+	if err := ih.itemService.DeleteById(id, requester.GetUserId()); err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}

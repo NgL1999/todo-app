@@ -12,7 +12,7 @@ import (
 )
 
 type IRealStore interface {
-	GetUser(conditions map[string]any) (*domain.User, error)
+	Get(filter map[string]any) (*domain.User, error)
 }
 
 type userCaching struct {
@@ -29,7 +29,7 @@ func NewUserCaching(store ICache, realStore IRealStore) *userCaching {
 	}
 }
 
-func (uc *userCaching) GetUser(conditions map[string]interface{}) (*domain.User, error) {
+func (uc *userCaching) Get(conditions map[string]interface{}) (*domain.User, error) {
 	var ctx = context.Background()
 	var user domain.User
 
@@ -45,7 +45,7 @@ func (uc *userCaching) GetUser(conditions map[string]interface{}) (*domain.User,
 	var userErr error
 
 	uc.once.Do(func() {
-		realUser, err := uc.realStore.GetUser(conditions)
+		realUser, err := uc.realStore.Get(conditions)
 
 		if err != nil {
 			userErr = err

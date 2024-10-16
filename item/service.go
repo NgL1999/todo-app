@@ -26,22 +26,22 @@ func NewItemService(repo IItemRepo) *itemService {
 	}
 }
 
-func (s *itemService) CreateItem(item *domain.ItemCreation) error {
+func (is *itemService) Create(item *domain.ItemCreation) error {
 	if err := item.Validate(); err != nil {
 		return client.ErrInvalidRequest(err)
 	}
 
 	item.ID = uuid.New()
-	if err := s.itemRepo.Save(item); err != nil {
+	if err := is.itemRepo.Save(item); err != nil {
 		return client.ErrCannotCreateEntity(item.TableName(), err)
 	}
 
 	return nil
 }
 
-func (s *itemService) GetAllItems(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error) {
+func (is *itemService) GetAll(userID uuid.UUID, paging *client.Paging) ([]domain.Item, error) {
 	filter := map[string]any{"user_id": userID}
-	items, err := s.itemRepo.GetAll(filter, paging)
+	items, err := is.itemRepo.GetAll(filter, paging)
 	if err != nil {
 		return nil, client.ErrCannotListEntity(domain.Item{}.TableName(), err)
 	}
@@ -49,8 +49,8 @@ func (s *itemService) GetAllItems(userID uuid.UUID, paging *client.Paging) ([]do
 	return items, nil
 }
 
-func (s *itemService) GetItemById(id, userID uuid.UUID) (domain.Item, error) {
-	item, err := s.itemRepo.Get(map[string]any{"id": id, "user_id": userID})
+func (is *itemService) GetById(id, userID uuid.UUID) (domain.Item, error) {
+	item, err := is.itemRepo.Get(map[string]any{"id": id, "user_id": userID})
 	if err != nil {
 		return domain.Item{}, client.ErrCannotGetEntity(item.TableName(), err)
 	}
@@ -58,9 +58,9 @@ func (s *itemService) GetItemById(id, userID uuid.UUID) (domain.Item, error) {
 	return item, nil
 }
 
-func (s *itemService) UpdateItemById(id, userID uuid.UUID, item *domain.ItemUpdate) error {
+func (is *itemService) UpdateById(id, userID uuid.UUID, item *domain.ItemUpdate) error {
 	item.UpdatedAt = time.Now()
-	err := s.itemRepo.Update(map[string]any{"id": id, "user_id": userID}, item)
+	err := is.itemRepo.Update(map[string]any{"id": id, "user_id": userID}, item)
 	if err != nil {
 		return client.ErrCannotUpdateEntity(item.TableName(), err)
 	}
@@ -68,8 +68,8 @@ func (s *itemService) UpdateItemById(id, userID uuid.UUID, item *domain.ItemUpda
 	return nil
 }
 
-func (s *itemService) DeleteItemById(id, userID uuid.UUID) error {
-	err := s.itemRepo.Delete(map[string]any{"id": id, "user_id": userID})
+func (is *itemService) DeleteById(id, userID uuid.UUID) error {
+	err := is.itemRepo.Delete(map[string]any{"id": id, "user_id": userID})
 	if err != nil {
 		return client.ErrCannotDeleteEntity(domain.Item{}.TableName(), err)
 	}

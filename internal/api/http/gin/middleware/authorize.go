@@ -11,7 +11,7 @@ import (
 )
 
 type AuthenRepo interface {
-	GetUser(conditions map[string]interface{}) (*domain.User, error)
+	Get(filter map[string]interface{}) (*domain.User, error)
 }
 
 func RequiredAuth(tokenProvider tokenprovider.Provider, userRepo AuthenRepo) func(c *gin.Context) {
@@ -27,7 +27,7 @@ func RequiredAuth(tokenProvider tokenprovider.Provider, userRepo AuthenRepo) fun
 			panic(err)
 		}
 
-		user, err := userRepo.GetUser(map[string]interface{}{"id": payload.UserID()})
+		user, err := userRepo.Get(map[string]interface{}{"id": payload.UserID()})
 		if err != nil {
 			panic(err)
 		}

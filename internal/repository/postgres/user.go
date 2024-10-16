@@ -26,10 +26,10 @@ func (r *userRepo) Save(user *domain.UserCreate) error {
 	return nil
 }
 
-func (r *userRepo) GetUser(conditions map[string]any) (*domain.User, error) {
+func (r *userRepo) Get(filter map[string]any) (*domain.User, error) {
 	var user domain.User
 
-	if err := r.db.Where(conditions).First(&user).Error; err != nil {
+	if err := r.db.Where(filter).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, client.ErrRecordNotFound
 		}
@@ -40,32 +40,41 @@ func (r *userRepo) GetUser(conditions map[string]any) (*domain.User, error) {
 	return &user, nil
 }
 
-// func (r *userRepo) GetAllUsers(users *[]domain.User) error {
-// 	if err := r.db.Find(users).Error; err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (r *userRepo) GetAll(filter map[string]any, paging *client.Paging) ([]domain.User, error) {
+	items := []domain.User{}
+	var query *gorm.DB
 
-// func (ir *userRepo) GetUserById(user *domain.User, id string) error {
-// 	if err := ir.db.Find(user, "id = ?", id).Error; err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+	if f := filter; f != nil {
+		if v := f["user_id"]; v != "" {
+			query = r.db.Where("user_id = ?", v)
+		}
+	}
 
-// func (ir *userRepo) UpdateUserById(user *domain.User) (int64, error) {
-// 	result := ir.db.Model(user).Updates(user)
-// 	if result.Error != nil {
-// 		return 0, result.Error
-// 	}
-// 	return result.RowsAffected, nil
-// }
+	if err := query.Table(domain.User{}.TableName()).Select("id").Count(&paging.Total).Error; err != nil {
+		return nil, client.ErrDB(err)
+	}
 
-// func (ir *userRepo) DeleteUserById(user *domain.User) (int64, error) {
-// 	result := ir.db.Delete(user)
-// 	if result.Error != nil {
-// 		return 0, result.Error
-// 	}
-// 	return result.RowsAffected, nil
-// }
+	query = r.db.Limit(paging.Limit).Offset((paging.Page - 1) * paging.Limit)
+
+	if err := query.Find(&items).Error; err != nil {
+		return nil, client.ErrDB(err)
+	}
+
+	return items, nil
+}
+
+func (r *userRepo) Update(filter map[string]any, user *domain.UserUpdate) error {
+	if err := r.db.Where(filter).Updates(&user).Error; err != nil {
+		return client.ErrDB(err)
+	}
+
+	return nil
+}
+
+func (r *userRepo) Delete(filter map[string]any) error {
+	if err := r.db.Table(domain.User{}.TableName()).Where(filter).Delete(nil).Error; err != nil {
+		return client.ErrDB(err)
+	}
+
+	return nil
+}

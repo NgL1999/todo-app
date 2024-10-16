@@ -12,7 +12,10 @@ import (
 
 type IUserRepo interface {
 	Save(user *domain.UserCreate) error
-	GetUser(conditions map[string]any) (*domain.User, error)
+	Get(filter map[string]any) (*domain.User, error)
+	GetAll(filter map[string]any, paging *client.Paging) ([]domain.User, error)
+	Update(filter map[string]any, user *domain.UserUpdate) error
+	Delete(filter map[string]any) error
 }
 
 type IHasher interface {
@@ -40,7 +43,7 @@ func (us *userService) Register(data *domain.UserCreate) error {
 		return client.ErrInvalidRequest(err)
 	}
 
-	user, err := us.userRepo.GetUser(map[string]any{"email": data.Email})
+	user, err := us.userRepo.Get(map[string]any{"email": data.Email})
 	if err != nil {
 		if !errors.Is(err, client.ErrRecordNotFound) {
 			return err
@@ -66,7 +69,7 @@ func (us *userService) Register(data *domain.UserCreate) error {
 }
 
 func (us *userService) Login(data *domain.UserLogin) (tokenprovider.Token, error) {
-	user, err := us.userRepo.GetUser(map[string]interface{}{"email": data.Email})
+	user, err := us.userRepo.Get(map[string]interface{}{"email": data.Email})
 	if err != nil {
 		return nil, domain.ErrEmailOrPasswordInvalid
 	}
@@ -90,32 +93,39 @@ func (us *userService) Login(data *domain.UserLogin) (tokenprovider.Token, error
 	return accessToken, nil
 }
 
-// func (s *userService) GetAllUsers(users *[]domain.User) error {
-// 	if err := s.userRepo.GetAllUsers(users); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (us *userService) GetAll(paging *client.Paging) ([]domain.User, error) {
+	users, err := us.userRepo.GetAll(nil, paging)
+	if err != nil {
+		return nil, client.ErrCannotListEntity(domain.User{}.TableName(), err)
+	}
 
-// func (is *userService) GetUserById(user *domain.User, id string) error {
-// 	if err := is.userRepo.GetUserById(user, id); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+	return users, nil
+}
 
-// func (is *userService) UpdateUserById(user *domain.User) (int64, error) {
-// 	result, err := is.userRepo.UpdateUserById(user)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	return result, nil
-// }
+func (us *userService) GetById(id uuid.UUID) (*domain.User, error) {
+	user, err := us.userRepo.Get(map[string]any{"id": id})
+	if err != nil {
+		return nil, client.ErrCannotGetEntity(user.TableName(), err)
+	}
 
-// func (is *userService) DeleteUserById(user *domain.User) (int64, error) {
-// 	result, err := is.userRepo.DeleteUserById(user)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	return result, nil
-// }
+	return user, nil
+}
+
+func (us *userService) UpdateById(id uuid.UUID, user *domain.UserUpdate) error {
+	// user.UpdatedAt = time.Now()
+	err := us.userRepo.Update(map[string]any{"id": id}, user)
+	if err != nil {
+		return client.ErrCannotUpdateEntity(user.TableName(), err)
+	}
+
+	return nil
+}
+
+func (us *userService) DeleteById(id uuid.UUID) error {
+	err := us.userRepo.Delete(map[string]any{"id": id})
+	if err != nil {
+		return client.ErrCannotDeleteEntity(domain.User{}.TableName(), err)
+	}
+
+	return nil
+}

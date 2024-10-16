@@ -29,16 +29,16 @@ func (role UserRole) String() string {
 
 type User struct {
 	ID        uuid.UUID
-	Email     string         `json:"email"`
-	Password  string         `json:"-"`
-	FirstName string         `json:"first_name"`
-	LastName  string         `json:"last_name"`
-	Phone     string         `json:"phone"`
-	Role      UserRole       `json:"role"`
-	Salt      string         `json:"-"`
+	Email     string        `json:"email"`
+	Password  string        `json:"-"`
+	FirstName string        `json:"first_name"`
+	LastName  string        `json:"last_name"`
+	Phone     string        `json:"phone"`
+	Role      UserRole      `json:"role"`
+	Salt      string        `json:"-"`
 	Status    client.Status `json:"status"`
-	CreatedAt *time.Time     `json:"created_at"`
-	UpdatedAt *time.Time     `json:"updated_at"`
+	CreatedAt *time.Time    `json:"created_at"`
+	UpdatedAt *time.Time    `json:"updated_at"`
 }
 
 func (User) TableName() string {
@@ -110,3 +110,18 @@ var (
 		"ErrEmailExisted",
 	)
 )
+
+type UserUpdate struct {
+	Email     string        `json:"email"`
+	Password  string        `json:"-"`
+	FirstName string        `json:"first_name"`
+	LastName  string        `json:"last_name"`
+	Phone     string        `json:"phone"`
+	Role      UserRole      `json:"role"`
+	Status    client.Status `json:"status"`
+	UpdatedAt *time.Time    `json:"updated_at"`
+}
+
+func (UserUpdate) TableName() string {
+	return User{}.TableName()
+}
